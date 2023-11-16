@@ -1,0 +1,2 @@
+# Ignore the go.sum file which contains the checksums of the downloaded modules
+go.sum
