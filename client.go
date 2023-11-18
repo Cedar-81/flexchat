@@ -29,7 +29,7 @@ func listenForEvents(conn *websocket.Conn) {
 }
 
 func client() {
-	serverAddr := "ws://localhost:8080"
+	serverAddr := "ws://localhost:8080/ws"
 	socketURL, err := url.Parse(serverAddr)
 	if err != nil {
 		log.Fatal(err)
@@ -63,11 +63,18 @@ func client() {
 			break
 		}
 
+		fmt.Println("Enter room id(enter exit to leave chat)>> ")
+		room, err := reader.ReadString('\n')
+		if strings.TrimSpace(room) == "exit" {
+			break
+		}
+
 		go listenForEvents(conn)
 
 		err = conn.WriteJSON(map[string]interface{}{
-			"type":  "message",
-			"value": message,
+			"type":    "message",
+			"value":   message,
+			"room_id": room,
 		})
 		if err != nil {
 			log.Fatal(err)

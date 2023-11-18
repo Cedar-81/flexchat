@@ -1,6 +1,8 @@
 package socket
 
 import (
+	"sync"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -41,14 +43,17 @@ type WebSocketConn struct {
 	Conn           *websocket.Conn
 	id             string
 	Active_room_id *string
+	server         *WebSocketServer
 }
 
 type WebSocketServer struct {
-	connections   []func(*WebSocketConn)
+	temp_conn     *websocket.Conn
+	connections   []*WebSocketConn
 	rooms         map[string]*Room
 	upgrader      websocket.Upgrader
 	sendQueue     chan Message
-	eventHandlers map[string][]func(*WebSocketConn, interface{})
+	eventHandlers map[string][]func(interface{})
+	WaitGroup     sync.WaitGroup
 }
 
 func NewWebSocketServer() *WebSocketServer {
@@ -56,13 +61,14 @@ func NewWebSocketServer() *WebSocketServer {
 		upgrader:      websocket.Upgrader{},
 		rooms:         make(map[string]*Room),
 		sendQueue:     make(chan Message),
-		eventHandlers: make(map[string][]func(*WebSocketConn, interface{})),
+		eventHandlers: make(map[string][]func(interface{})),
 	}
 }
 
-func NewWebSocketConn(conn *websocket.Conn) *WebSocketConn {
+func NewWebSocketConn(conn *websocket.Conn, server_conn *WebSocketServer) *WebSocketConn {
 	return &WebSocketConn{
-		id:   uuid.New().String(),
-		Conn: conn,
+		id:     uuid.New().String(),
+		Conn:   conn,
+		server: server_conn,
 	}
 }

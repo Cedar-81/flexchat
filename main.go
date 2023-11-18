@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/Cedar-81/flexchat/socket"
-	"github.com/gorilla/websocket"
 )
 
 func main() {
@@ -12,20 +11,21 @@ func main() {
 
 	fmt.Println("Befor init...")
 
-	server.OnConnect(func(conn *websocket.Conn) {
+	server.On("connection", func(socket *socket.WebSocketConn) {
 
-		server.On("join", func(conn *socket.WebSocketConn, data interface{}) {
-			server.Join(data, conn)
+		socket.On("join", func(data interface{}) {
+			fmt.Println("joining room....")
+			socket.Join(data)
 		})
 
-		server.On("message", func(innerConn *socket.WebSocketConn, data interface{}) {
+		socket.On("message", func(data interface{}) {
 			fmt.Println("Received 'message' event:", data)
-			server.To(*innerConn.Active_room_id, innerConn).Emit("message", data, innerConn)
-			// socketInstance.Emit("message", socket.NewEmitOptions(data, data["room_id"]), conn)
+			socket.To(data).Emit("message", data)
 		})
 
 	})
 
+	// server.WaitGroup.Wait()
 	err := server.Init("8080")
 
 	if err != nil {

@@ -3,10 +3,11 @@ package socket
 import (
 	"fmt"
 	"strings"
-	"sync"
 )
 
+// handle dispatching message to room members
 func (server *WebSocketServer) processSendQueue() {
+	fmt.Println("Just warming up...")
 	for msg := range server.sendQueue {
 		if msg.room != nil {
 			fmt.Println("Processing message: ", msg)
@@ -23,19 +24,19 @@ func (server *WebSocketServer) processSendQueue() {
 }
 
 func (server *WebSocketServer) sendMessageToRoom(id string, msg *Message) {
-	var wg sync.WaitGroup
+
 	room, exists := server.rooms[strings.TrimSpace(id)]
 	fmt.Println("Sending message to: ", room, exists)
 	if exists {
-		wg.Add(1)
-		go server.broadcastMessageToRoom(room, &wg)
+		// server.WaitGroup.Add(1)
+		go server.broadcastMessageToRoom(room)
 		room.Channel <- msg
 	}
 
 }
 
-func (server *WebSocketServer) broadcastMessageToRoom(room *Room, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (server *WebSocketServer) broadcastMessageToRoom(room *Room) {
+	// defer server.WaitGroup.Done()
 	fmt.Println("Broadcasting message to channel: ", room.ID)
 	for msg := range room.Channel {
 		fmt.Println("Broadcasting... ", msg.data)
@@ -43,7 +44,7 @@ func (server *WebSocketServer) broadcastMessageToRoom(room *Room, wg *sync.WaitG
 			if strings.TrimSpace(member.id) == strings.TrimSpace(msg.conn.id) {
 				continue
 			}
-			fmt.Println("Sending message to members: ", member.id)
+			fmt.Println("Sending message to members: ", member.id, msg.data)
 			member.Conn.WriteJSON(msg.data)
 		}
 	}
@@ -65,7 +66,8 @@ func (server *WebSocketServer) broadcastMessageToRoom(room *Room, wg *sync.WaitG
 // }
 
 func (server *WebSocketServer) handleEvents(conn *WebSocketConn) {
-	fmt.Println("Checking events...")
+	// defer server.WaitGroup.Done()
+	fmt.Println("Checking events...", server)
 	for {
 		var event map[string]interface{}
 		if err := conn.Conn.ReadJSON(&event); err != nil {
@@ -73,15 +75,17 @@ func (server *WebSocketServer) handleEvents(conn *WebSocketConn) {
 			return
 		}
 		for _, handler := range server.eventHandlers[event["type"].(string)] {
-			go handleEvent(event, handler, conn)
+			// server.WaitGroup.Add(1)
+			go server.handleEvent(event, handler, conn)
 
 		}
 	}
 
 }
 
-func handleEvent(data map[string]interface{}, handler func(*WebSocketConn, interface{}), connection *WebSocketConn) {
+func (server *WebSocketServer) handleEvent(data map[string]interface{}, handler func(interface{}), connection *WebSocketConn) {
+	// defer server.WaitGroup.Done()
 	fmt.Println("handling...")
 	fmt.Println("Handling event...", data["type"].(string), data["value"].(string))
-	go handler(connection, data["value"])
+	handler(data)
 }
